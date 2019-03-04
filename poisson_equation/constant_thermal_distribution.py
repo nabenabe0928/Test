@@ -1,6 +1,9 @@
 import numpy as np
 from numba import jit, f8, i8, b1, void
 import time
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
 
 @jit(f8[:,:](i8,i8,f8,f8,f8[:,:],f8[:],f8[:]))
 def get_laplacian_inv(W, H, dx, dy, f_bound, phi, psi):
@@ -37,14 +40,41 @@ def get_laplacian_inv(W, H, dx, dy, f_bound, phi, psi):
 	
 	return np.linalg.inv(L)
 
+def plot_heatmap(x, y, f):
+
+	contour = plt.contourf(x, y, f, 100)
+	plt.colorbar(contour)
+	plt.axis('equal')
+	plt.tight_layout(pad=0.1)
+	plt.savefig('figure.png')
+	plt.show()
+
+@jit(f8[:,:](f8[:,:],i8,i8,f8[:,:]))
+def get_f(f, W, H, f_bound):
+	f = np.reshape(f, (H, W))
+	f_return = np.array([[f_bound[1][0]] * (W + 2)]) 
+	
+	for f_yi in f:
+		f_yi = np.append(f_yi, f_bound[0][1])
+		f_yi = np.insert(f_yi, 0, f_bound[0][0])
+		f_return = np.append(f_return, [f_yi], axis = 0)
+
+	f_return = np.append(f_return, [[f_bound[1][1]] * (W + 2)], axis = 0)
+	
+	return f_return
+
 if __name__ == "__main__":
-	W = 3
-	H = 3
-	dx = float( 0.1 / (W + 1) )
-	dy = float( 0.1 / (H + 1) )
-	f_bound = np.array([[0.0, 100.0], [0.0, 100]])
+	W = 50
+	H = 50
+	l = 0.1
+	x, y = np.meshgrid(np.linspace(0, l, W + 2), np.linspace(0, l, H + 2))
+	dx = float( l / (W + 1) )
+	dy = float( l / (H + 1) )
+	f_bound = np.array([[0.0, 0.0], [100.0, 100]])
 	psi = np.zeros(W * H)
 	phi = np.zeros(W * H)
 	L_inv = get_laplacian_inv(W, H, dx, dy, f_bound, phi, psi)
 	
-	print(np.dot(L_inv, psi))
+	f = get_f(np.dot(L_inv, psi), W, H, f_bound)
+	
+	plot_heatmap(x, y, f)
